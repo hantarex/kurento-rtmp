@@ -42,13 +42,6 @@ var options =
     };
 
 const rtmp_server_config = {
-    rtmp: {
-        port: 1935,
-        chunk_size: 60000,
-        gop_cache: true,
-        ping: 60,
-        ping_timeout: 30
-    },
     http: {
         port: 8000,
         allow_origin: '*'
@@ -348,16 +341,15 @@ function bindFFmpeg(streamip, streamport, sdpData, ws) {
     var ffmpeg_args = [
         '-protocol_whitelist', 'file,udp,rtp',
         '-i', path.join(__dirname, streamip + '_' + streamport + '.sdp'),
-        '-vcodec', 'copy',
-        '-acodec', 'copy',
+        '-c', 'copy',
         '-f', 'flv',
         'rtmp://localhost/live/' + streamip + '_' + streamport
     ].concat();
     var child = spawn('ffmpeg', ffmpeg_args);
-    ws.send(JSON.stringify({
-        id: 'rtmp',
-        message: '/live/' + streamip + '_' + streamport
-    }));
+    // ws.send(JSON.stringify({
+    //     id: 'rtmp',
+    //     message: '/live/' + streamip + '_' + streamport
+    // }));
     //ignore stdout
     //this.child.stdout.on('data', this.emit.bind(this, 'data'));
     child.stderr.on('data', function (data) {

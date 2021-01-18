@@ -1,0 +1,182 @@
+<html>
+<head>
+    <meta http-equiv='Content-Type' content='text/html; charset=UTF-8'>
+    <title> webrtc test  </title>
+    <style type="text/css">
+        .room {
+            cursor: pointer;
+        }
+        div.select {
+            display: inline-block;
+            margin: 0 0 1em 0;
+        }
+    </style>
+    <script src="static/bower_components/adapter.js/adapter.js"></script>
+
+</head>
+<body>
+<h1>MediaServer  Demo</h1>
+<br/>
+
+<div id="conference">
+    <video id="video" playsinline autoplay></video>
+    <button id="startButton">Start</button>
+    <button id="callButton">Call</button>
+    <button id="stopButton">Stop</button>
+</div>
+
+<script type='text/javascript'>
+    const ws = new WebSocket('wss://127.0.0.1:8443/magicmirror');
+    window.onbeforeunload = function () {
+        ws.close();
+    };
+    let localStream;
+    let candidates = [];
+    const startButton = document.getElementById('startButton');
+    const stopButton = document.getElementById('stopButton');
+    const callButton = document.getElementById('callButton');
+    stopButton.disabled = true;
+    callButton.disabled = true;
+    startButton.addEventListener('click', start);
+    stopButton.addEventListener('click', stop);
+    callButton.addEventListener('click', call);
+    let startTime;
+    const video = document.getElementById('video');
+
+    async function start() {
+        console.log('Start');
+        console.log('Requesting local stream');
+        startButton.disabled = true;
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({audio: false, video: true});
+            console.log('Received local stream');
+            video.srcObject = stream;
+            localStream = stream;
+            callButton.disabled = false;
+        } catch (e) {
+            alert(`getUserMedia() error: ${e.name}`);
+        }
+    }
+
+    let pc;
+    // const offerOptions = {
+    //     offerToReceiveAudio: 1,
+    //     offerToReceiveVideo: 1
+    // };
+
+    async function call() {
+        // Установим состояние кнопок
+        callButton.disabled = true;
+        stopButton.disabled = false;
+        console.log('Starting call');
+        // Получаем и выводим информацию о медиа-потоках
+        const videoTracks = localStream.getVideoTracks();
+        const audioTracks = localStream.getAudioTracks();
+        if (videoTracks.length > 0) {
+            console.log(`Using video device: ${videoTracks[0].label}`);
+        }
+        if (audioTracks.length > 0) {
+            console.log(`Using audio device: ${audioTracks[0].label}`);
+        }
+
+        // Создаем объекты RTCPeerConnection c пустой конфигурацией
+        const configuration = {};
+        console.log('RTCPeerConnection configuration:', configuration);
+        pc = new RTCPeerConnection(configuration);
+        console.log('Created local peer connection object pc1');
+
+        // Добавляем обработчики на событие добавления ICE кандидата
+        pc.addEventListener('icecandidate', e => onIceCandidate(e));
+
+        // Достаем потоки из текущего stream объекта и передаем их в объект RTCPeerConnection
+        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+        console.log(localStream.getTracks());
+
+        // Формируем offer из pc1
+        try {
+            console.log('pc1 createOffer start');
+            const offer = await pc.createOffer();
+            await onCreateOfferSuccess(offer);
+            // await onCreateOfferSuccess(offer);
+        } catch (e) {
+            console.log(`${e}`);
+        }
+    }
+
+    async function onIceCandidate(event) {
+        if (!event || !event.candidate) return;
+        try {
+            ws.send(JSON.stringify({id: 'onIceCandidate', candidate: event.candidate}));
+            console.log(`host addIceCandidate success ${event.candidate.candidate}`);
+        } catch (e) {
+            console.log(`failed to add ICE Candidate: ${e.toString()}`);
+        }
+    }
+
+    function startResponse(message) {
+        console.log('SDP answer received from server. Processing ...');
+        console.log(message.sdpAnswer);
+        pc.setRemoteDescription(new RTCSessionDescription(new RTCSessionDescription({
+            type: 'answer',
+            sdp: message.sdpAnswer
+        }))).then(() => {
+            candidates.forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)));
+        });
+    }
+
+    ws.onmessage = function (message) {
+        const parsedMessage = JSON.parse(message.data);
+        switch (parsedMessage.id) {
+            case 'startResponse':
+                startResponse(parsedMessage);
+                break;
+            // case 'error':
+            //     if (state == I_AM_STARTING) {
+            //         setState(I_CAN_START);
+            //     }
+            //     onError('Error message from server: ' + parsedMessage.message);
+            //     break;
+            case 'iceCandidate':
+                console.log(parsedMessage.candidate);
+                candidates.push(parsedMessage.candidate);
+                break;
+            case 'ffmpeg':
+                console.log('From ffmpeg:', parsedMessage.message);
+                break;
+            default:
+                // if (state == I_AM_STARTING) {
+                //     setState(I_CAN_START);
+                // }
+                console.error('Unrecognized message', parsedMessage);
+        }
+    };
+
+    async function onCreateOfferSuccess(desc) {
+        console.log(`Offer from pc\n${desc.sdp}`);
+        console.log('pc setLocalDescription start');
+        try {
+            await pc.setLocalDescription(desc);
+            ws.send(JSON.stringify({id: 'start', sdpOffer: desc.sdp}));
+            onSetLocalSuccess(pc);
+        } catch (e) {
+            console.log(`error setting description to pc1 ${e.toString()}`);
+        }
+    }
+
+
+    function onSetLocalSuccess(pc) {
+        console.log(`pc setLocalDescription complete`);
+    }
+
+    async function stop() {
+        console.log('stop')
+    }
+
+    video.addEventListener('loadedmetadata', function () {
+        console.log(`Video width: ${this.videoWidth}px, height: ${this.videoHeight}px`)
+    })
+</script>
+</body>
+
+
+</html>

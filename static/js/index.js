@@ -52,7 +52,8 @@ ws.onmessage = function (message) {
 			onError('Error message from server: ' + parsedMessage.message);
 			break;
 		case 'iceCandidate':
-			webRtcPeer.addIceCandidate(parsedMessage.candidate)
+			console.log(parsedMessage.candidate);
+			webRtcPeer.addIceCandidate(parsedMessage.candidate);
 			break;
 		case 'ffmpeg':
 			console.log('From ffmpeg:', parsedMessage.message);
@@ -83,7 +84,7 @@ function start() {
 		remoteVideo: videoOutput,
 		onicecandidate: onIceCandidate,
 		mediaConstraints: {
-      audio: true,
+      audio: false,
       video: {
         width: 620,
         framerate: 15
