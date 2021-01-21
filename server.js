@@ -14,7 +14,7 @@
  * limitations under the License.
  *
  */
-const NodeMediaServer = require('node-media-server').NodeMediaServer;
+// const NodeMediaServer = require('node-media-server').NodeMediaServer;
 
 var path = require('path');
 var url = require('url');
@@ -427,8 +427,8 @@ function onIceCandidate(sessionId, _candidate) {
 }
 
 app.use(express.static(path.join(__dirname, 'static')));
-var nms = new NodeMediaServer(rtmp_server_config);
-nms.run();
+// var nms = new NodeMediaServer(rtmp_server_config);
+// nms.run();
 process.on('uncaughtException', function (error) {
     console.log(error);
 });
