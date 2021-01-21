@@ -43,7 +43,7 @@ var options =
 
 const rtmp_server_config = {
     http: {
-        port: 8000,
+        port: 8100,
         allow_origin: '*'
     }
 };
@@ -264,8 +264,8 @@ function createMediaElements(pipeline, ws, callback) {
             return callback(error);
         }
 
-        webRtcEndpoint.setMaxVideoRecvBandwidth(200);
-        webRtcEndpoint.setMinVideoRecvBandwidth(100);
+        webRtcEndpoint.setMaxVideoRecvBandwidth(5000);
+        webRtcEndpoint.setMinVideoRecvBandwidth(2000);
 
         pipeline.create("RtpEndpoint", function (error, rtpEndpoint) {
             if (error) {
@@ -339,11 +339,13 @@ a=rtpmap:96 H264/90000
 function bindFFmpeg(streamip, streamport, sdpData, ws) {
     fs.writeFileSync(streamip + '_' + streamport + '.sdp', sdpData);
     var ffmpeg_args = [
+        '-y',
         '-protocol_whitelist', 'file,udp,rtp',
         '-i', path.join(__dirname, streamip + '_' + streamport + '.sdp'),
         '-c', 'copy',
         '-f', 'flv',
-        'rtmp://localhost/live/' + streamip + '_' + streamport
+        // 'rtmp://localhost/live/' + streamip + '_' + streamport
+        'video_' + streamport + '.flv'
     ].concat();
     var child = spawn('ffmpeg', ffmpeg_args);
     // ws.send(JSON.stringify({
