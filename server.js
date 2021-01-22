@@ -117,7 +117,7 @@ wss.on('connection', function (ws, request) {
         switch (message.id) {
             case 'start':
                 sessionId = request.session.id;
-                start(sessionId, ws, message.sdpOffer, function (error, sdpAnswer) {
+                start(sessionId, ws, message, function (error, sdpAnswer) {
                     if (error) {
                         return ws.send(JSON.stringify({
                             id: 'error',
@@ -172,7 +172,9 @@ function getKurentoClient(callback) {
     });
 }
 
-function start(sessionId, ws, sdpOffer, callback) {
+function start(sessionId, ws, message, callback) {
+    const sdpOffer = message.sdpOffer;
+    const key = message.key;
     if (!sessionId) {
         return callback('Cannot use undefined sessionId');
     }
@@ -234,7 +236,7 @@ function start(sessionId, ws, sdpOffer, callback) {
                                 }
                                 console.log('start process on: rtp://' + streamIp + ':' + streamPort);
                                 console.log('recv sdp answer:', sdpAnswer);
-                                var _ffmpeg_child = bindFFmpeg(streamIp, streamPort, sdpRtpOfferString, ws);
+                                var _ffmpeg_child = bindFFmpeg(streamIp, streamPort, sdpRtpOfferString, key, ws);
                                 sessions[sessionId] = {
                                     'pipeline': pipeline,
                                     'webRtcEndpoint': webRtcEndpoint,
@@ -336,7 +338,7 @@ m=video 55000 RTP/AVP 96
 b=AS:200
 a=rtpmap:96 H264/90000
 */
-function bindFFmpeg(streamip, streamport, sdpData, ws) {
+function bindFFmpeg(streamip, streamport, sdpData, key, ws) {
     fs.writeFileSync(streamip + '_' + streamport + '.sdp', sdpData);
     var ffmpeg_args = [
         '-y',
@@ -344,8 +346,8 @@ function bindFFmpeg(streamip, streamport, sdpData, ws) {
         '-i', path.join(__dirname, streamip + '_' + streamport + '.sdp'),
         '-c', 'copy',
         '-f', 'flv',
-        // 'rtmp://localhost/live/' + streamip + '_' + streamport
-        'video_' + streamport + '.flv'
+        'rtmp://localhost/' + key
+        // 'video_' + streamport + '.flv'
     ].concat();
     var child = spawn('ffmpeg', ffmpeg_args);
     // ws.send(JSON.stringify({
